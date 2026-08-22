@@ -1,0 +1,13 @@
+[package]
+name = "trackmania-forever-sticker-manager"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+directories = "6.0.0"
+iced = { version = "0.14.0", features = ["image", "svg"] }
+open = "5.4.1"
+regex = "1.13.1"
+rfd = "0.17.2"
+serde = "1.0.229"
+serde_json = "1.0.151"
