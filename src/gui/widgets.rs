@@ -1,6 +1,7 @@
-
 use iced::{
-    Alignment, Element, Length, alignment::Vertical, widget::{button, container, image, row, text},
+    Alignment, Element, Length,
+    alignment::Vertical,
+    widget::{button, container, image, row, text},
 };
 
 use crate::{
