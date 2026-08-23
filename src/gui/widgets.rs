@@ -24,7 +24,10 @@ pub fn title_bar() -> Element<'static, AppMessage> {
     .into()
 }
 
-pub fn sticker_button(app_settings: &AppSettings, sticker_name: String) -> Element<'_, AppMessage> {
+pub fn sticker_button(
+    app_settings: &AppSettings,
+    sticker_name: String,
+) -> Element<'_, AppMessage> {
     let image_handle: image::Handle =
         utils::get_tm_sticker_image(app_settings, &sticker_name, utils::StickerAssetType::Icon);
 
@@ -48,8 +51,8 @@ pub fn sticker_button(app_settings: &AppSettings, sticker_name: String) -> Eleme
         .padding(10);
 
     button(sticker_entry)
-        .style(button::background)
         .on_press(AppMessage::SelectSticker(sticker_name.clone()))
+        .style(button::background)
         .into()
 }
 

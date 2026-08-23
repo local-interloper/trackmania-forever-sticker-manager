@@ -1,23 +1,17 @@
 use std::{
     fs::{self, OpenOptions},
     path::PathBuf,
+    process::{self},
 };
 
 use serde::{Deserialize, Serialize};
 
-use crate::utils;
+use crate::{constants, utils};
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone, Serialize, Deserialize, Default)]
 pub struct AppSettings {
     pub game_directory: PathBuf,
-}
-
-impl Default for AppSettings {
-    fn default() -> Self {
-        Self {
-            game_directory: PathBuf::from("."),
-        }
-    }
+    pub magick_path: PathBuf,
 }
 
 impl AppSettings {
@@ -36,27 +30,19 @@ impl AppSettings {
             .create(true)
             .read(true)
             .write(true)
+            .truncate(false)
             .open(&config_path)
             .unwrap();
 
         if !config_already_existed {
-            loop {
-                if let Some(path) = rfd::FileDialog::new().pick_folder() {
-                    let new_settings = AppSettings {
-                        game_directory: path,
-                        ..Self::default()
-                    };
-
-                    new_settings.save();
-
-                    return new_settings;
-                }
-            }
+            return AppSettings::init();
         }
 
-        
+        let Ok(settings) = serde_json::from_reader(config_file) else {
+            return AppSettings::init();
+        };
 
-        serde_json::from_reader(config_file).unwrap()
+        settings
     }
 
     pub fn save(&self) {
@@ -65,9 +51,60 @@ impl AppSettings {
         let config_file = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(config_dir_path.join("config.json"))
             .unwrap();
 
         serde_json::to_writer_pretty(config_file, &self).unwrap();
+    }
+
+    pub fn init() -> Self {
+        let mut settings = AppSettings::default();
+
+        rfd::MessageDialog::new()
+            .set_title("First time setup")
+            .set_description(constants::dialogs::FIRST_TIME_SETUP)
+            .show();
+
+        rfd::MessageDialog::new()
+            .set_title("Step 1")
+            .set_description(constants::dialogs::SELECT_GAME_DIRECTORY)
+            .show();
+
+        settings.game_directory = loop {
+            match rfd::FileDialog::new()
+                .set_title("Select the TrackMania game directory")
+                .pick_folder()
+            {
+                Some(path) => {
+                    if !path.join(constants::STICKERS_PATH).exists() {
+                        rfd::MessageDialog::new()
+                            .set_title("Error")
+                            .set_description(constants::dialogs::errors::INCORRECT_GAME_DIRECTORY)
+                            .show();
+                        continue;
+                    }
+                    break path;
+                }
+                None => process::exit(0),
+            };
+        };
+
+        rfd::MessageDialog::new()
+            .set_title("Step 2")
+            .set_description(constants::dialogs::SELECT_MAGICK_BINARY)
+            .show();
+
+        settings.magick_path = match rfd::FileDialog::new()
+            .set_title("Select the magick executable")
+            .pick_file()
+        {
+            Some(path) => path,
+            None => process::exit(0),
+        };
+
+        settings.save();
+
+        settings
     }
 }

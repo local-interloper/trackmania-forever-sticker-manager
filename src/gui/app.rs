@@ -3,16 +3,13 @@ use std::vec;
 use super::widgets;
 
 use iced::{
-    Element, Length, Task,
+    Alignment, Element, Font, Length, Task, font,
     widget::{Column, button, column, container, row, scrollable, text},
 };
 
 use crate::{
     app_settings::AppSettings,
-    gui::{
-        AppMessage::{ReloadStickers, SetSearch},
-        tasks,
-    },
+    gui::{AppMessage::ReloadStickers, tasks},
     utils,
 };
 
@@ -30,6 +27,7 @@ pub enum AppMessage {
     AddSticker,
     RemoveSticker(String),
     SetSearch(String),
+    ClearSearch,
     Donate,
 }
 
@@ -69,8 +67,15 @@ impl App {
             AppMessage::AddSticker => {
                 let settings = self.settings.clone();
 
-                Task::perform(async move { tasks::new_sticker(&settings).await }, |_| {
-                    AppMessage::ReloadStickers
+                Task::perform(
+                    async move { tasks::new_sticker(&settings).await },
+                    |sticker_name| sticker_name,
+                )
+                .then(|sticker_name| {
+                    Task::done(AppMessage::ReloadStickers).chain(match sticker_name {
+                        Some(sticker_name) => Task::done(AppMessage::SelectSticker(sticker_name)),
+                        None => Task::none(),
+                    })
                 })
             }
             AppMessage::SelectSticker(sticker_name) => {
@@ -86,8 +91,13 @@ impl App {
 
                 Task::none()
             }
-            SetSearch(text) => {
+            AppMessage::SetSearch(text) => {
                 self.search = text;
+
+                Task::none()
+            }
+            AppMessage::ClearSearch => {
+                self.search.clear();
 
                 Task::none()
             }
@@ -95,8 +105,18 @@ impl App {
     }
 
     pub fn view(&self) -> Element<'_, AppMessage> {
-        let search = iced::widget::text_input("Search", &self.search)
-            .on_input(AppMessage::SetSearch);
+        let mut search =
+            row![iced::widget::text_input("Search", &self.search).on_input(AppMessage::SetSearch)]
+                .spacing(5);
+
+        if !self.search.is_empty() {
+            search = search.extend(vec![
+                button("Clear")
+                    .style(button::subtle)
+                    .on_press(AppMessage::ClearSearch)
+                    .into(),
+            ]);
+        }
 
         column![
             widgets::title_bar(),
@@ -112,12 +132,15 @@ impl App {
                                         .filter(|t| t
                                             .to_lowercase()
                                             .contains(&self.search.to_lowercase()))
-                                        .map(move |t| {
-                                            widgets::sticker_button(&self.settings, t.clone())
+                                        .map(move |sticker_name| {
+                                            widgets::sticker_button(
+                                                &self.settings,
+                                                sticker_name.clone(),
+                                            )
                                         }),
                                 )
                                 .spacing(10)
-                                .padding(10),
+                                .padding(20),
                             )
                             .width(Length::Fill)
                         ]
@@ -129,9 +152,19 @@ impl App {
                     .width(Length::FillPortion(3))
                     .style(container::bordered_box),
                     container(
-                        button(text("Add Sticker"))
-                            .width(Length::Fill)
-                            .on_press(AppMessage::AddSticker)
+                        button(
+                            row![
+                                text("+").font(Font {
+                                    weight: font::Weight::Bold,
+                                    ..Font::default()
+                                }),
+                                text("Add Sticker")
+                            ]
+                            .spacing(5)
+                            .align_y(Alignment::Center)
+                        )
+                        .width(Length::Fill)
+                        .on_press(AppMessage::AddSticker)
                     )
                     .width(Length::Fill)
                 ]

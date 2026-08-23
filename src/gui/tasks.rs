@@ -8,21 +8,39 @@ use regex::Regex;
 
 use crate::{app_settings::AppSettings, utils};
 
-pub async fn new_sticker(app_settings: &AppSettings) {
+pub async fn new_sticker(app_settings: &AppSettings) -> Option<String> {
     let result = rfd::FileDialog::new()
-        .set_title("Pick a texture file")
+        .set_title("Select your sticker image")
         .pick_file();
 
-    let trackmania_stickers_dir_path = utils::get_tm_stickers_dir_path(app_settings);
-
     let Some(input_path) = result else {
-        return;
+        return None;
     };
+
+    let result = Command::new(&app_settings.magick_path)
+        .arg("identify")
+        .arg(&input_path)
+        .spawn()
+        .unwrap()
+        .wait();
+
+    if let Ok(result) = result
+        && !result.success()
+    {
+        rfd::MessageDialog::new()
+            .set_title("Error")
+            .set_description("That's not an image.")
+            .show();
+
+        return None;
+    }
+
+    let trackmania_stickers_dir_path = utils::get_tm_stickers_dir_path(app_settings);
 
     let input_file = Path::new(&input_path);
 
     let Some(file_name) = input_file.file_name() else {
-        return;
+        return None;
     };
 
     let file_name = file_name.to_string_lossy().to_string();
@@ -39,6 +57,8 @@ pub async fn new_sticker(app_settings: &AppSettings) {
                 &sticker_name
             ))
             .show();
+
+        return None;
     }
 
     let icon_path = trackmania_stickers_dir_path
@@ -49,23 +69,37 @@ pub async fn new_sticker(app_settings: &AppSettings) {
         .join(&sticker_name)
         .join("Sticker.tga");
 
-    if let Ok(mut handle) = Command::new("magick")
+    if let Ok(mut handle) = Command::new(&app_settings.magick_path)
         .arg(&input_path)
         .args(["-resize", "500x500"])
         .arg(&sticker_path)
         .spawn()
     {
-        handle.wait().unwrap();
+        let status = handle.wait().unwrap();
+        if !status.success() {
+            rfd::MessageDialog::new()
+                .set_title("Error")
+                .set_description("Failed to convert image. Is it even an image?");
+
+            return None;
+        }
     }
 
-    if let Ok(mut handle) = Command::new("magick")
+    if let Ok(mut handle) = Command::new(&app_settings.magick_path)
         .arg(&input_path)
         .args(["-resize", "64x64"])
         .arg(&icon_path)
         .spawn()
     {
-        handle.wait().unwrap();
+        let status = handle.wait().unwrap();
+        if !status.success() {
+            rfd::MessageDialog::new()
+                .set_title("Error")
+                .set_description("Failed to convert image. Is it even an image?");
+        }
     }
+
+    Some(sticker_name)
 }
 
 pub async fn remove_sticker(app_settings: &AppSettings, sticker_name: String) {

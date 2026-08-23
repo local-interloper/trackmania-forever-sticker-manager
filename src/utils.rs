@@ -2,7 +2,10 @@ use std::{fs, panic, path::PathBuf};
 
 use iced::widget::image;
 
-use crate::{app_settings::AppSettings, constants};
+use crate::{
+    app_settings::AppSettings,
+    constants,
+};
 
 pub enum StickerAssetType {
     Icon,
@@ -69,8 +72,11 @@ pub fn get_sticker_names(app_settings: &AppSettings) -> Vec<String> {
 }
 
 pub fn get_config_dir() -> PathBuf {
-    let Some(project_dirs) = directories::ProjectDirs::from("me", "local.interloper", "tmsm")
-    else {
+    let Some(project_dirs) = directories::ProjectDirs::from(
+        constants::package_info::QUALIFIER,
+        constants::package_info::ORGANIZATION,
+        constants::package_info::APPLICATION,
+    ) else {
         panic!("Failed to compute project dirs");
     };
 
