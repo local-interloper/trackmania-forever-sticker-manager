@@ -1,4 +1,4 @@
-use std::vec;
+use std::{dbg, println, vec};
 
 use super::widgets;
 
@@ -46,7 +46,7 @@ impl App {
 
     pub fn update(&mut self, message: AppMessage) -> Task<AppMessage> {
         match message {
-            ReloadStickers => {
+            AppMessage::ReloadStickers => {
                 self.stickers = utils::get_sticker_names(&self.settings);
 
                 Task::none()
@@ -59,6 +59,7 @@ impl App {
                 };
 
                 let settings = self.settings.clone();
+
                 Task::perform(
                     async move { tasks::remove_sticker(&settings, sticker_name).await },
                     |_| AppMessage::ReloadStickers,

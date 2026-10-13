@@ -84,6 +84,7 @@ impl AppSettings {
                             .show();
                         continue;
                     }
+
                     break path;
                 }
                 None => process::exit(0),
